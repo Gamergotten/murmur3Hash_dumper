@@ -10,7 +10,7 @@ utilites (all load the hashed strings ontop of the currently loaded ones)
 - hash strings from directory - will dig through every file in directory for strings to hash and add to list of currently hashed strings
 - dump loaded hashed strings - export the hashed strings that are currently loaded into a text file database 
 
-and then extra utilities i did to try and minimize the overall outputted list of hashes strings
+and then extra utilities i did to try and minimize the overall outputted list of hashed strings
 - filter against directory - attempt to narrow down list of currently loaded hashed strings by looking for references to the hashes themselves within all files in a directory, which runs too slowly
 - filter strings with capitals - filters list of currently loaded strings by removing ones with anything other than lowercase letters, numbers and underscores
 - filter strings for repeated letters - filters out strings with 4 same letters in a row
