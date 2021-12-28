@@ -20,6 +20,12 @@ namespace murmur3_dumper
 
         public string Current_String; // we construct strings by reading a single byte at a time
 
+        Regex rxStringSearch = new Regex(@"^[a-zA-Z0-9-_/\\.]*?$",RegexOptions.Compiled);
+        Regex rxCapitalsFilter = new Regex(@"^[a-z0-9_]*?$", RegexOptions.Compiled);
+        Regex rx3CharsFilter = new Regex(@"(.*[a-z]){3}", RegexOptions.Compiled);
+
+
+        
         public void Main1()
         {
             Console.WriteLine(Hashedstrings.Count + " strings loaded in mem");
@@ -171,7 +177,7 @@ namespace murmur3_dumper
                             string utfString = Encoding.UTF8.GetString(b, 0, 1);
 
                             //bool stringIsValid = Regex.IsMatch(utfString, @"^[a-zA-Z0-9-_/\\]*?$");
-                            bool stringIsValid = Regex.IsMatch(utfString, @"^[a-zA-Z0-9-_/\\.]*?$");
+                            bool stringIsValid = rxStringSearch.IsMatch(utfString);
                             if (stringIsValid && s != 0x0A)
                             {
                                 Current_String += utfString;
@@ -321,6 +327,8 @@ namespace murmur3_dumper
             }
         }
 
+
+
         private void ProcessChunk(byte[] buffer, int bytesRead)
         {
             try
@@ -333,7 +341,7 @@ namespace murmur3_dumper
                     string utfString = Encoding.UTF8.GetString(b, 0, 1);
 
                     //bool stringIsValid = Regex.IsMatch(utfString, @"^[a-zA-Z0-9-_/\\]*?$");
-                    bool stringIsValid = Regex.IsMatch(utfString, @"^[a-zA-Z0-9-_/\\.]*?$");
+                    bool stringIsValid = rxStringSearch.IsMatch(utfString);
                     if (stringIsValid && s != 0x0A)
                     {
                         Current_String += utfString;
@@ -417,7 +425,7 @@ namespace murmur3_dumper
             foreach (KeyValuePair<string, string> kv in Hashedstrings)
             {
 
-                bool stringIsValid = Regex.IsMatch(kv.Key, @"^[a-z0-9_]*?$");
+                bool stringIsValid = rxCapitalsFilter.IsMatch(kv.Key);
                 if (stringIsValid)
                 {
                     filtered_strings.Add(kv.Key, kv.Value);
@@ -504,7 +512,7 @@ namespace murmur3_dumper
             foreach (KeyValuePair<string, string> kv in Hashedstrings)
             {
 
-                bool stringIsValid = Regex.IsMatch(kv.Key, @"(.*[a-z]){3}");
+                bool stringIsValid = rx3CharsFilter.IsMatch(kv.Key);
                 if (stringIsValid)
                 {
                     filtered_strings.Add(kv.Key, kv.Value);
