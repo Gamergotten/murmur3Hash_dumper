@@ -26,9 +26,15 @@ namespace murmur3_dumper
             Console.WriteLine("select an action");
             Console.WriteLine("\"load\" - this will attempt to load hashed strings from a previously dumped file");
             Console.WriteLine("\"hash\" - this will attempt to strip, hash and load strings from every file in a directory");
-            Console.WriteLine("\"dump\" - this will offload all the loaded string hashes into a text file");
             Console.WriteLine("\"hashbig\" - if \"hash\" failed, then likely the file is too large, try this one");
-            Console.WriteLine("\"filter\" - runs the loaded hashed strings against the binaries inside the directory - to filter unused hashes");
+            Console.WriteLine("");
+            Console.WriteLine("\"dump\" - this will offload all the loaded string hashes into a text file");
+            Console.WriteLine("\"splitdump\" - this will offload all the loaded string hashes into a text file");
+            Console.WriteLine("");
+            Console.WriteLine("\"filter\" - runs the loaded hashed strings against the binaries inside the directory - to filter unused hashes (REALLY slow)");
+            Console.WriteLine("\"nocaps\" - removes currently loaded strings that: has upper case chars and/or contains unusual chars except underscore");
+            Console.WriteLine("\"no4reps\" - filters currently loaded strings that have 4 or more of the same character in a row"); // this one really didn't turn out too well
+            Console.WriteLine("\"min3chars\" - filters currently loaded strings that don't contain at least 3 lowercase alphabetical characters"); // this one really didn't turn out too well
 
 
             string selection = Console.ReadLine();
@@ -77,6 +83,49 @@ namespace murmur3_dumper
 
                 filter_hashes(Path);
             }
+            else if (selection == "nocaps")
+            {
+                Console.WriteLine("filtering");
+
+                filtercaps();
+            }
+            else if (selection == "no4reps")
+            {
+                Console.WriteLine("filtering");
+
+                filterreps();
+            }
+            else if (selection == "splitdump")
+            {
+                if (Hashedstrings.Count > 0)
+                {
+                    Console.WriteLine("select a file path+name to offload to (it will add [file index].txt to the ends) ");
+                    string Path = Console.ReadLine();
+                    Console.WriteLine("choose a number of files to split to");
+                    //try
+                    //{
+                        string count_num = Console.ReadLine();
+                        int count = Int32.Parse(count_num);
+                        splitoffload(Path, count);
+                    //}
+                    //catch
+                    //{
+                    //    Console.WriteLine("bad count; number didnt work");
+                    //}
+                }
+                else
+                {
+                    Console.WriteLine("you have nothing to offload");
+                }
+            }
+            else if (selection == "min3chars")
+            {
+                Console.WriteLine("filtering");
+
+                filter3chars();
+
+            }
+
             Console.WriteLine("");
             Console.WriteLine("");
 
@@ -182,7 +231,46 @@ namespace murmur3_dumper
             }
         }
 
+        public void splitoffload(string out_path, int count)
+        {
+            List<Dictionary<string, string>> Dumps = new();
+            for (int i = 0; i <count; i++)
+            {
+                Dumps.Add(new Dictionary<string, string>());
+            }
+            int index = 0;
+            foreach (KeyValuePair<string, string> kv in Hashedstrings)
+            {
+                Dumps[index].Add(kv.Key, kv.Value);
 
+                index += 1;
+                if (index>=count)
+                    index = 0;
+            }
+
+            for(int i = 0; i < Dumps.Count; i++)
+            {
+                Dictionary<string, string> d = Dumps[i];
+                try
+                {
+                    using (StreamWriter outputFile = new StreamWriter(out_path + i + ".txt"))
+                    {
+                        foreach (KeyValuePair<string, string> kv in d)
+                        {
+                            outputFile.WriteLine(kv.Value + ":" + kv.Key);
+                        }
+                    }
+                    Console.WriteLine("Successfully offloaded "+ d.Count +" hashes!");
+                }
+                catch
+                {
+                    Console.WriteLine(" --------------------------------------------------------------------------------------------------------");
+                    Console.WriteLine("#####" + out_path + " failed to write");
+                    Console.WriteLine(" --------------------------------------------------------------------------------------------------------");
+                }
+            }
+
+        }
 
         public string Hash(string hash_in)
         {
@@ -312,6 +400,7 @@ namespace murmur3_dumper
                     Console.WriteLine("Successfully filtered the strings from " + file);
 
                 }
+                Hashedstrings = filtered_strings;
             }
             catch
             {
@@ -321,6 +410,152 @@ namespace murmur3_dumper
             }
         }
 
+        public void filtercaps()
+        {
+            Dictionary<string, string> filtered_strings = new();
+
+            foreach (KeyValuePair<string, string> kv in Hashedstrings)
+            {
+
+                bool stringIsValid = Regex.IsMatch(kv.Key, @"^[a-z0-9_]*?$");
+                if (stringIsValid)
+                {
+                    filtered_strings.Add(kv.Key, kv.Value);
+                }
+            }
+            Hashedstrings = filtered_strings;
+        }
+
+        public void filterreps()
+        {
+            Dictionary<string, string> filtered_strings = new();
+
+            foreach (KeyValuePair<string, string> kv in Hashedstrings)
+            {
+                char repeated_char_1 = new();
+                char repeated_char_2 = new();
+                char repeated_char_3 = new();
+                string repeatedWord = kv.Key;
+                int toomanymatches = 0;
+                for (int i = 0; i < repeatedWord.Count()-1; i++)
+                {
+                    if (repeated_char_1== '\x0000' && repeated_char_2== '\x0000') // both null
+                    {
+                        repeated_char_1=repeatedWord[i];
+                        continue;
+                    }
+                    if (repeated_char_1 != '\x0000' && repeated_char_2 == '\x0000') // 1 but 2 is null
+                    {
+                        if (repeatedWord[i] == repeated_char_1)
+                        {
+                            repeated_char_2 = repeatedWord[i];
+                        }
+                        else
+                        {
+                            repeated_char_1 = '\x0000';
+                            repeated_char_2 = '\x0000';
+                            repeated_char_3 = '\x0000';
+                        }
+                        continue;
+                    }
+                    if (repeated_char_1 != '\x0000' && repeated_char_2 != '\x0000' && repeated_char_3 == '\x0000') // both not null
+                    {
+                        if (repeatedWord[i] == repeated_char_1&&repeatedWord[i] == repeated_char_2)
+                        {
+                            repeated_char_3 = repeatedWord[i];
+                            continue;
+                        }
+                        else
+                        {
+                            repeated_char_1 = '\x0000';
+                            repeated_char_2 = '\x0000';
+                            repeated_char_3 = '\x0000';
+                        }
+                        continue;
+                    }
+                    if (repeated_char_1 != '\x0000' && repeated_char_2 != '\x0000' && repeated_char_3 != '\x0000') // none are null
+                    {
+                        if (repeatedWord[i] == repeated_char_1 && repeatedWord[i] == repeated_char_2 && repeatedWord[i] == repeated_char_3)
+                        {
+                            toomanymatches = 1;
+                            break;
+                        }
+                        else
+                        {
+                            repeated_char_1 = '\x0000';
+                            repeated_char_2 = '\x0000';
+                            repeated_char_3 = '\x0000';
+                        }
+                    }
+                }
+
+                if (toomanymatches == 1)
+                {
+                    filtered_strings.Add(kv.Key, kv.Value);
+                }
+            }
+            Hashedstrings = filtered_strings;
+        }
+
+        public void filter3chars()
+        {
+            Dictionary<string, string> filtered_strings = new();
+
+            foreach (KeyValuePair<string, string> kv in Hashedstrings)
+            {
+
+                bool stringIsValid = Regex.IsMatch(kv.Key, @"(.*[a-z]){3}");
+                if (stringIsValid)
+                {
+                    filtered_strings.Add(kv.Key, kv.Value);
+                }
+            }
+            Hashedstrings = filtered_strings;
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // random code i got off the internet // works a little better than what i had
+        // or maybe not
+
         public static byte[] StringToByteArray(String hex)
         {
             int NumberChars = hex.Length;
@@ -329,12 +564,6 @@ namespace murmur3_dumper
                 bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
             return bytes;
         }
-
-
-
- 
-        // random code i got off the internet // works a little better than what i had
-        // or maybe not
         public static int IndexOf(byte[] haystack, byte[] needle)
         {
             if (needle.Length == 0)
